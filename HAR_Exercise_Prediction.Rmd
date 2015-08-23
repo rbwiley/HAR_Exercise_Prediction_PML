@@ -27,20 +27,20 @@ Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable
 Read training and test datasets into tables; Note: these data are already partitioned and are obtained as predivided training and testing sets. Note: not shown in this report: (View some training data (head()); view the data structures to confirm they match.) To assure integrity of the test process, 
 the testing data is not even viewed at this step of the modeling and analysis preparation. 
 
-'''{r}
+```{r, echo=FALSE}
 library("caret", lib.loc="~/R/win-library/3.2")  
 library("e1071", lib.loc="~/R/win-library/3.2")  
 library("randomForest", lib.loc="~/R/win-library/3.2")  
 library("plyr", lib.loc="~/R/win-library/3.2")  
 library("ipred", lib.loc="~/R/win-library/3.2")  
-'''
+```
 
 ```{r}
 training <- read.csv( "./data/pml-training.csv")
 testing <- read.csv("./data/pml-testing.csv")
 ```
 
-While viewing the structure of each data set (str()), it is observed that there are lots 
+While viewing the structure of each data set (str()) and summary statistics (summary()), it is observed that there are lots 
 of NA and missing (or null) values in the training dataset.  
 Some 'scrubbing' of the data is necessary before proceeding with EDA and the model development.  
 The training set will be partitioned to provide a validation subset of 25% of the 
@@ -49,7 +49,7 @@ But 1st: Perform EDA
 
 ##Exploratory Data Analysis (EDA)
 
-Six subject participants performed one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl. They varied the exercise in five ways (the five levels in the variable classe: 
+Six subject participants performed one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl. They varied the exercise in five ways (the five levels in the variable classe as follows:  
 1. Exactly according to the specification (Class A), 
 2. Throwing the elbows to the front (Class B), 
 3. Lifting the dumbbell only halfway (Class C), 
@@ -62,35 +62,36 @@ To Read more:   http://groupware.les.inf.puc-rio.br/har#ixzz3jWKhXZDo
 
 ###Clean the data for blanks and NAs
 The data are processed to remove variables that are predomonantly blank or NA.
-'''{r, echo=FALSE}
+
+```{r, echo=FALSE}
 TrainingNoNA <- training
 TrainingNoNA[ training == '' | training == 'NA'] <- NA
 NoNAList <- which(colSums(is.na(TrainingNoNA))!=0)
 TrainingNoBlank <- TrainingNoNA[, -NoNAList]
 TrainingCln <- TrainingNoBlank[,-(1:7)]      #drop 1st 7 attribute\timestamp columns
-'''
+```
 Correlation matrix plots give a rough idea about all combinations of variables'
-relationships. 
-'''{r, echo=FALSE}
-#pairs(TrainingCln[,1:13])
-#pairs(TrainingCln[,14:26])
+relationships. Examples are presented below:  
+```{r, echo=FALSE}
+pairs(TrainingCln[,1:13])
+pairs(TrainingCln[,14:26])
 pairs(TrainingCln[,27:39])
-#pairs(TrainingCln[,40:52])
-'''
+pairs(TrainingCln[,40:52])
+```  
 Some variables appear to be primarily zero and thus will not improve via transformation.
 The gyro_forearm, y and z, are examples of this and are found in the 2nd plot.  
 Many more plots and descriptive statistics were run but not included in this report.
   
 ## Features of Training data
 All variables having NA or blank values are removed from the data sets. This leaves
-'r ncol(TrainingCln)' variables for training, validating and testing the model.  
+`r ncol(TrainingCln)` variables for training, validating and testing the model.  
 
-'''{r}
+```{r}
 inTrain <- createDataPartition(y=TrainingCln$classe, p=0.75, list=FALSE)
 validation1 <- TrainingCln[-inTrain,]
 training1 <- TrainingCln[inTrain,]
 dim(validation1) ; dim(training1)
-'''
+```
 Experiments with several model types produced lesser quality predictions. The Random 
 Forest method produced the most accurate prediction when validated. Only that result 
 is presented below.
@@ -98,35 +99,43 @@ is presented below.
 
 ```{r}
 set.seed(10001)
-ModelfitRF <- train(classe ~ ., data=training1,  method="rf", tuneLength = 1, ntree = 25)
+TrainControl <- trainControl(method = "cv", number = 5, returnResamp = "all")
+ModelfitRF <- train(classe ~ ., data=training1,  method="rf", 
+                    tuneLength = 1, 
+                    trainControl = TrainControl, ntree = 25)
 ModelfitRF$finalModel
 ResultRF <- predict(ModelfitRF, newdata = validation1)
 ```
 ## Model Validation Results
-'''{r}
+```{r}
 confusionMatrix(ResultRF, validation1$classe)
-'''
-The model produces a very accurate result per the confusion matrix summary. The 99.25%
-accuracy with a ±95% confidence interval of [0.9896, 0.9947] and a p-value near 
-zero. The out of sample error is 1.14%. 
+```
+The validated model produces a very accurate result per the confusion matrix summary. The 99.65%
+accuracy with a ±95% confidence interval of [0.9945, 0.998] and a p-value near 
+zero. The out of sample error is 0.99%. 
 
 ##Prepare Test Data Set and Test the Model
 The test sets' extra variables (having NA and blanks) must be removed as was done 
 for the training set. 
 
-'''{r}
+```{r}
 TestingNoNA <- testing
 TestingNoNA[ testing == '' | testing == 'NA'] <- NA
 TestNoNAList <- which(colSums(is.na(TestingNoNA))!=0)
 TestingNoBlank <- TestingNoNA[, -TestNoNAList]
 TestingCln <- TestingNoBlank[,-(1:7)]      #drop 1st 7 attribute\timestamp columns
-'''
+```
 
 
 ###Running the Random Forest Model to predict the test data set
-The model is used to predict the classe for the test set. The result is displayed.
-'''{r}
+The model is used to predict the exercise variation (TestingCln$classe) for the 
+test set. The result is then displayed.
+```{r}
 Resulttest <- predict(ModelfitRF, newdata = TestingCln)
 Resulttest
-'''
-The test data set result is shown.
+```
+The test data set result is shown.  
+
+##Conclusion
+Based on the validated model result, the Random Forest method prduced a very accurate
+prediction with low out-of-sample error.
