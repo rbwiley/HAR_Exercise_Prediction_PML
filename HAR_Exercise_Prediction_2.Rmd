@@ -1,0 +1,83 @@
+---
+title: "test train() not found error"
+author: "RB Wiley"
+date: "August 23, 2015"
+output: html_document
+---
+---
+title: "Human  Activity Recognition Prediction Study"
+author: "RB Wiley"
+date: "August 20, 2015"
+output: html_document
+---
+
+##Executive Summary  
+Human Activity Recognition (HAR) has gained increased attention by an increasingly 
+health-aware public. This is paralleled by a community of researchers interested 
+in collecting and analyzing those data for a myriad of beneficial purposes. These 
+include the development of context-aware systems having many potential applications 
+for HAR. Such preventive applications as elderly monitoring and monitoring energy expenditure. 
+Other commercially profitable applications have arisen such as supporting weight-loss 
+programs and digital assistants for weight lifting exercises.
+
+
+### The Question
+This report focuses on the question: can modeling of such data be used to develop
+ prediction algorithms that are of the quality of the exercise activities performed.  
+ 
+
+## The Input Data and a Citation for the source of the data
+Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
+
+### Select and load the data for analysis.
+Read training and test datasets into tables; Note: these data are already partitioned and are obtained as predivided training and testing sets. Note: not shown in this report: (View some training data (head()); view the data structures to confirm they match.) To assure integrity of the test process, 
+the testing data is not even viewed at this step of the modeling and analysis preparation. 
+
+'''{r}
+library("caret", lib.loc="~/R/win-library/3.2")  
+library("e1071", lib.loc="~/R/win-library/3.2")  
+library("randomForest", lib.loc="~/R/win-library/3.2")  
+library("plyr", lib.loc="~/R/win-library/3.2")  
+library("ipred", lib.loc="~/R/win-library/3.2")  
+'''
+
+```{r}
+training <- read.csv( "./data/pml-training.csv")
+head(training)
+
+testing <- read.csv("./data/pml-testing.csv")
+```
+
+While viewing the structure of each data set, it is observed that there are lots 
+of NA and missing (or null) values in the training dataset.  
+Some 'scrubbing' of the data is necessary before proceeding with EDA and the model development.  
+The training set will be partitioned to provide a validation subset of 25% of the 
+initial training dataset.  
+But 1st: Perform EDA
+
+##Exploratory Data Analysis (EDA)
+
+Six subject participants performed one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl. They varied the exercise in five ways (the five levels in the variable classe: 
+1. Exactly according to the specification (Class A), 
+2. Throwing the elbows to the front (Class B), 
+3. Lifting the dumbbell only halfway (Class C), 
+4. Lowering the dumbbell only halfway (Class D) and 
+5. Throwing the hips to the front (Class E).
+
+Class A corresponds to the specified execution of the exercise, while the other 
+4 classes correspond to common mistakes in performing the exercise.  
+To Read more:   http://groupware.les.inf.puc-rio.br/har#ixzz3jWKhXZDo  
+
+###Clean the data for blanks and NAs
+The data are processed to remove variables that are predomonantly blank or NA.
+
+'''{r, echo=FALSE}
+TrainingNoNA <- training
+TrainingNoNA[ training == '' | training == 'NA'] <- NA
+NoNAList <- which(colSums(is.na(TrainingNoNA))!=0)
+TrainingNoBlank <- TrainingNoNA[, -NoNAList]
+TrainingCln <- TrainingNoBlank[,-(1:7)]
+'''  
+
+Correlation matrix plots give a rough idea about all combinations of variables'
+relationships. 
